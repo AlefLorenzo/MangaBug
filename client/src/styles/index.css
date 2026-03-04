@@ -1,0 +1,218 @@
+:root {
+    --bg: #0B0E14;
+    --bg-soft: #161B22;
+    --nav-bg: #0D1117;
+    --accent: #8B5CF6;
+    --accent-soft: rgba(139, 92, 246, 0.1);
+    --text: #F0F6FC;
+    --text-dim: #8B949E;
+    --error: #F85149;
+    --success: #3FB950;
+    --navbar-h: 64px;
+    --sidebar-w: 240px;
+    --max-w: 1100px;
+    --transition: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+}
+
+/* 🧪 Global Layout 🧪 */
+.app-layout {
+    min-height: 100vh;
+}
+
+.page-container {
+    padding-top: var(--navbar-h);
+    transition: padding 0.3s var(--transition);
+}
+
+.page-container.with-sidebar {
+    padding-left: var(--sidebar-w);
+}
+
+.centralized-wrapper {
+    max-width: var(--max-w);
+    margin: 0 auto;
+    padding: 32px 24px;
+}
+
+/* 🧩 Global Navbar 🧩 */
+.global-navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--navbar-h);
+    background: rgba(13, 17, 23, 0.8);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    z-index: 100;
+}
+
+.navbar-content {
+    max-width: var(--max-w);
+    margin: 0 auto;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+}
+
+.nav-left,
+.nav-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.site-brand {
+    font-size: 22px;
+    font-weight: 800;
+    color: white;
+    text-decoration: none;
+    letter-spacing: -0.5px;
+}
+
+.site-brand .accent {
+    color: var(--accent);
+}
+
+.menu-trigger {
+    background: transparent;
+    border: none;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    transition: 0.2s;
+}
+
+.menu-trigger:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.admin-nav-btn {
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    color: var(--accent);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.admin-nav-btn:hover {
+    background: var(--accent);
+    color: white;
+}
+
+.user-info-pill {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px;
+    padding-right: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 30px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.user-info-pill:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 12px;
+}
+
+.user-rank {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-dim);
+}
+
+.user-rank.admin {
+    color: #FBBF24;
+}
+
+.logout-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 8px;
+    transition: 0.2s;
+}
+
+.logout-btn:hover {
+    color: var(--error);
+}
+
+/* 📁 Global Footer 📁 */
+.global-footer {
+    padding: 40px 24px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 13px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* 🌀 Premium Spinners & Loaders 🌀 */
+.premium-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(139, 92, 246, 0.1);
+    border-left-color: var(--accent);
+    border-radius: 50%;
+    animation: premium-spin 1s linear infinite;
+}
+
+@keyframes premium-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* 📱 Responsive Adjustments 📱 */
+@media (max-width: 1024px) {
+    .page-container.with-sidebar {
+        padding-left: 0;
+    }
+
+    .desktop-only {
+        display: none !important;
+    }
+}

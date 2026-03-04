@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Build output
+client/dist/
+dist/
+
+# Database files
+server/db.sqlite
+*.sqlite
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Uploads (user-generated content - don't track in git)
+uploads/
+
+# Debug/test scripts
+server/test_*.js
+server/debug_*.js
+server/verify_*.js
+server/audit_db.js
+server/check_*.js
+server/fix_*.js
+server/list_*.js
+server/server_log.txt
+
+# Sensitive credentials
+admin_credentials.txt
