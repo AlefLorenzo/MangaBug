@@ -3,10 +3,7 @@ import pool from '../config/db.js';
 export const getLogs = async (req, res) => {
     try {
         const [rows] = await pool.query(`
-            SELECT 
-                l.*, 
-                u.username, 
-                u.avatar_url 
+            SELECT l.*, u.username, u.avatar_url 
             FROM logs l 
             LEFT JOIN users u ON l.user_id = u.id 
             ORDER BY l.created_at DESC 
@@ -32,7 +29,7 @@ export const clearLogs = async (req, res) => {
 export const getAdminProfile = async (req, res) => {
     const { id } = req.user;
     try {
-        const [rows] = await pool.query('SELECT id, username, email FROM users WHERE id = ? AND is_admin = 1', [id]);
+        const [rows] = await pool.query('SELECT id, username, email FROM users WHERE id = $1 AND is_admin = 1', [id]);
         if (rows.length === 0) return res.status(404).json({ error: 'Admin not found' });
         res.json({ ...rows[0], is_admin: true });
     } catch (error) {
@@ -45,11 +42,10 @@ export const getDashboardStats = async (req, res) => {
     try {
         const [workCount] = await pool.query('SELECT COUNT(*) as total FROM works');
         const [userCount] = await pool.query('SELECT COUNT(*) as total FROM users');
-        const [viewCount] = await pool.query('SELECT SUM(views) as total FROM works');
-        const [recentLogs] = await pool.query('SELECT COUNT(*) as total FROM logs WHERE created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)');
+        const [viewCount] = await pool.query('SELECT COALESCE(SUM(views), 0) as total FROM works');
+        const [recentLogs] = await pool.query("SELECT COUNT(*) as total FROM logs WHERE created_at > NOW() - INTERVAL '24 hours'");
 
-        // Chart Data mapping (Simulated based on total views)
-        const total = viewCount[0].total || 0;
+        const total = parseInt(viewCount[0].total) || 0;
         const statsData = [
             { name: 'Seg', views: Math.floor(total * 0.12) + 20 },
             { name: 'Ter', views: Math.floor(total * 0.15) + 35 },
@@ -61,10 +57,10 @@ export const getDashboardStats = async (req, res) => {
         ];
 
         res.json({
-            works: workCount[0].total,
-            users: userCount[0].total,
+            works: parseInt(workCount[0].total),
+            users: parseInt(userCount[0].total),
             views: total,
-            active_today: recentLogs[0].total,
+            active_today: parseInt(recentLogs[0].total),
             chartData: statsData
         });
     } catch (error) {
@@ -89,7 +85,7 @@ export const deleteUser = async (req, res) => {
         if (parseInt(id) === req.user.id) {
             return res.status(400).json({ success: false, error: 'Você não pode excluir sua própria conta root' });
         }
-        await pool.query('DELETE FROM users WHERE id = ?', [id]);
+        await pool.query('DELETE FROM users WHERE id = $1', [id]);
         res.json({ success: true, message: 'Usuário removido com sucesso' });
     } catch (error) {
         console.error('deleteUser Error:', error);
@@ -123,7 +119,7 @@ export const addBanner = async (req, res) => {
         const finalWorkId = work_id === '' || work_id === 'null' ? null : work_id;
 
         await pool.query(
-            'INSERT INTO banners (title, subtitle, image_url, work_id, is_active) VALUES (?, ?, ?, ?, ?)',
+            'INSERT INTO banners (title, subtitle, image_url, work_id, is_active) VALUES ($1, $2, $3, $4, $5)',
             [title || 'Destaque', subtitle || '', image_path, finalWorkId, 1]
         );
 
@@ -140,7 +136,7 @@ export const addBanner = async (req, res) => {
 export const deleteBanner = async (req, res) => {
     const { id } = req.params;
     try {
-        await pool.query('DELETE FROM banners WHERE id = ?', [id]);
+        await pool.query('DELETE FROM banners WHERE id = $1', [id]);
 
         const io = global.io;
         if (io) io.emit('banners_updated', { action: 'delete', id });

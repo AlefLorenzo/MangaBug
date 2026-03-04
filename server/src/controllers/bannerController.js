@@ -12,7 +12,7 @@ export const getBanners = async (req, res) => {
 
         // Fetch buttons for each banner
         for (let banner of rows) {
-            const [buttons] = await pool.query('SELECT * FROM banner_buttons WHERE banner_id = ? ORDER BY display_order ASC', [banner.id]);
+            const [buttons] = await pool.query('SELECT * FROM banner_buttons WHERE banner_id = $1 ORDER BY display_order ASC', [banner.id]);
             banner.buttons = buttons;
         }
 
@@ -33,15 +33,15 @@ export const createBanner = async (req, res) => {
         await connection.beginTransaction();
 
         const [result] = await connection.query(
-            'INSERT INTO banners (work_id, image_url, title, subtitle) VALUES (?, ?, ?, ?)',
+            'INSERT INTO banners (work_id, image_url, title, subtitle) VALUES ($1, $2, $3, $4) RETURNING id',
             [finalWorkId, image_url, title, subtitle]
         );
-        const bannerId = result.insertId;
+        const bannerId = result[0].id;
 
         if (buttons && Array.isArray(buttons)) {
             for (let btn of buttons) {
                 await connection.query(
-                    'INSERT INTO banner_buttons (banner_id, label, action_type, action_value, display_order) VALUES (?, ?, ?, ?, ?)',
+                    'INSERT INTO banner_buttons (banner_id, label, action_type, action_value, display_order) VALUES ($1, $2, $3, $4, $5)',
                     [bannerId, btn.label, btn.action_type, btn.action_value, btn.display_order || 0]
                 );
             }
@@ -71,15 +71,15 @@ export const updateBanner = async (req, res) => {
         await connection.beginTransaction();
 
         await connection.query(
-            'UPDATE banners SET work_id = ?, title = ?, subtitle = ?, is_active = ? WHERE id = ?',
+            'UPDATE banners SET work_id = $1, title = $2, subtitle = $3, is_active = $4 WHERE id = $5',
             [work_id || null, title, subtitle, is_active ? 1 : 0, id]
         );
 
         if (buttons && Array.isArray(buttons)) {
-            await connection.query('DELETE FROM banner_buttons WHERE banner_id = ?', [id]);
+            await connection.query('DELETE FROM banner_buttons WHERE banner_id = $1', [id]);
             for (let btn of buttons) {
                 await connection.query(
-                    'INSERT INTO banner_buttons (banner_id, label, action_type, action_value, display_order) VALUES (?, ?, ?, ?, ?)',
+                    'INSERT INTO banner_buttons (banner_id, label, action_type, action_value, display_order) VALUES ($1, $2, $3, $4, $5)',
                     [id, btn.label, btn.action_type, btn.action_value, btn.display_order || 0]
                 );
             }
@@ -99,7 +99,7 @@ export const updateBanner = async (req, res) => {
 export const deleteBanner = async (req, res) => {
     const { id } = req.params;
     try {
-        await pool.query('DELETE FROM banners WHERE id = ?', [id]);
+        await pool.query('DELETE FROM banners WHERE id = $1', [id]);
 
         const io = global.io;
         if (io) io.emit('banners_updated', { action: 'delete', id });

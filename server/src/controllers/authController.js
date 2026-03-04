@@ -12,7 +12,7 @@ export const register = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Todos os campos são obrigatórios.' });
         }
 
-        const [existing] = await pool.query('SELECT username, email FROM users WHERE username = ? OR email = ?', [username, email]);
+        const [existing] = await pool.query('SELECT username, email FROM users WHERE username = $1 OR email = $2', [username, email]);
         if (existing.length > 0) {
             const isEmail = existing.some(u => u.email === email);
             return res.status(400).json({
@@ -23,7 +23,7 @@ export const register = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
         await pool.query(
-            'INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)',
+            'INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3)',
             [username, email, hashedPassword]
         );
         res.status(201).json({ success: true, message: 'Cadastro realizado com sucesso!' });
@@ -39,7 +39,7 @@ export const login = async (req, res) => {
 
     try {
         const [users] = await pool.query(
-            'SELECT * FROM users WHERE email = ? OR username = ?',
+            'SELECT * FROM users WHERE email = $1 OR username = $2',
             [identifier, identifier]
         );
 
@@ -76,7 +76,7 @@ export const adminLogin = async (req, res) => {
 
     try {
         const [admins] = await pool.query(
-            'SELECT * FROM users WHERE (email = ? OR username = ?) AND is_admin = 1',
+            'SELECT * FROM users WHERE (email = $1 OR username = $2) AND is_admin = 1',
             [identifier, identifier]
         );
 
@@ -86,8 +86,6 @@ export const adminLogin = async (req, res) => {
         const isMatch = await bcrypt.compare(password, admin.password_hash);
         if (!isMatch) return res.status(401).json({ success: false, message: 'Senha incorreta.' });
 
-        // Use same secret OR different? App.jsx/AdminAuthContext.jsx uses DIFFERENT logic.
-        // But getMe should be accessible via both.
         const token = jwt.sign({ id: admin.id, is_admin: true }, JWT_SECRET_ADMIN, { expiresIn: '7d' });
 
         res.json({
@@ -104,7 +102,7 @@ export const adminLogin = async (req, res) => {
 export const getMe = async (req, res) => {
     try {
         const [users] = await pool.query(
-            'SELECT id, username, email, is_admin, avatar_url, xp, level FROM users WHERE id = ?',
+            'SELECT id, username, email, is_admin, avatar_url, xp, level FROM users WHERE id = $1',
             [req.user.id]
         );
         if (users.length === 0) return res.status(404).json({ message: 'Usuário não encontrado' });
