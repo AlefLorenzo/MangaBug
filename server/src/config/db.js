@@ -15,7 +15,7 @@ const pool = new pg.Pool({
 
 // Test connection on startup
 pool.query('SELECT NOW()')
-    .then(() => console.log('✅ Connected to Supabase PostgreSQL'))
+    .then(() => console.log('✅ Connected to PostgreSQL'))
     .catch(err => console.error('❌ Database connection error:', err.message));
 
 // Wrapper: makes pool.query return [rows, fields] like mysql2 for compatibility
