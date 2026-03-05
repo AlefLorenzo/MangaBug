@@ -3,43 +3,63 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const pool = new pg.Pool({
+const { Pool } = pg;
+
+if (!process.env.DATABASE_URL) {
+    console.error('❌ DATABASE_URL não definida nas variáveis de ambiente');
+    process.exit(1);
+}
+
+const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
+
+    // 🔐 Obrigatório para Supabase / Render
     ssl: {
         rejectUnauthorized: false
     },
+
+    // 🔥 FORÇA IPv4 (resolve ENETUNREACH no Render)
+    family: 4,
+
+    // ⚙️ Pool tuning (estável em produção)
     max: 10,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 10000
 });
 
-// Test connection on startup
-pool.query('SELECT NOW()')
-    .then(() => console.log('✅ Connected to PostgreSQL'))
-    .catch(err => console.error('❌ Database connection error:', err.message));
+// 🧪 Teste de conexão ao subir o servidor
+(async () => {
+    try {
+        await pool.query('SELECT 1');
+        console.log('✅ PostgreSQL conectado com sucesso');
+    } catch (err) {
+        console.error('❌ Erro ao conectar no PostgreSQL:', err);
+    }
+})();
 
-// Wrapper: makes pool.query return [rows, fields] like mysql2 for compatibility
-const wrappedPool = {
+// 🧱 Wrapper para compatibilidade com mysql2
+const db = {
     query: async (text, params) => {
         const result = await pool.query(text, params);
         return [result.rows, result.fields];
     },
+
     getConnection: async () => {
         const client = await pool.connect();
-        const releaseRef = client.release.bind(client);
         const rawQuery = client.query.bind(client);
+        const release = client.release.bind(client);
 
         return {
             query: async (text, params) => {
                 const result = await rawQuery(text, params);
                 return [result.rows, result.fields];
             },
-            beginTransaction: () => rawQuery('BEGIN'),
-            commit: () => rawQuery('COMMIT'),
-            rollback: () => rawQuery('ROLLBACK'),
-            release: () => releaseRef()
+            beginTransaction: async () => rawQuery('BEGIN'),
+            commit: async () => rawQuery('COMMIT'),
+            rollback: async () => rawQuery('ROLLBACK'),
+            release
         };
     }
 };
 
-export default wrappedPool;
+export default db;
