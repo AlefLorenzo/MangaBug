@@ -1,5 +1,5 @@
 # ── MangaBug — Dockerfile Unificado para Railway ──
-# Multi-stage: compila frontend + roda backend servindo tudo
+# Faz build do frontend + roda o backend servindo tudo
 
 # ============================================
 # Stage 1: Build do frontend (React + Vite)
@@ -22,8 +22,14 @@ RUN npm run build
 # ============================================
 FROM node:20-slim
 
-# Pacotes de sistema mínimos para produção
+# Instala ferramentas de build necessárias para compilar módulos nativos (como sharp)
+# do zero, se os binários pré-compilados falharem por qualquer motivo.
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    make \
+    g++ \
+    gcc \
+    libc6-dev \
     dumb-init \
     && rm -rf /var/lib/apt/lists/*
 
@@ -32,8 +38,12 @@ WORKDIR /app
 # Copia package files do backend
 COPY server/package.json server/package-lock.json* ./server/
 
-# Instala dependências — sharp instala binário prebuilt automaticamente em Debian
-RUN cd server && npm install --omit=dev
+# Configura o ambiente para compilação nativa se necessário
+ENV NPM_CONFIG_BUILD_FROM_SOURCE=false
+
+# Instala dependências (production only)
+# --include=optional garante que o sharp baixe os binários certos para Linux
+RUN cd server && npm install --omit=dev --include=optional
 
 # Copia código do backend
 COPY server/src/ ./server/src/
@@ -51,5 +61,5 @@ EXPOSE ${PORT:-5000}
 
 ENV NODE_ENV=production
 
-# dumb-init como PID 1 — reap zombie processes corretamente
+# dumb-init como PID 1 — gerencia processos corretamente
 CMD ["dumb-init", "node", "src/index.js"]

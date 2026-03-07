@@ -1,8 +1,14 @@
 # ── MangaBug API — Dockerfile ──
 FROM node:20-slim
 
-# Instala o dumb-init para gerenciar melhor os processos no container
+# Instala ferramentas de build necessárias para compilar módulos nativos (como sharp)
+# do zero, se os binários pré-compilados falharem por qualquer motivo.
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    make \
+    g++ \
+    gcc \
+    libc6-dev \
     dumb-init \
     && rm -rf /var/lib/apt/lists/*
 
@@ -12,8 +18,8 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 
 # Instala dependências (production only)
-# No Debian, o sharp baixa os binários pré-compilados automaticamente
-RUN npm install --omit=dev
+# --include=optional garante que o sharp baixe os binários certos para Linux
+RUN npm install --omit=dev --include=optional
 
 # Copia o restante do código
 COPY . .
