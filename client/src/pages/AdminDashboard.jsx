@@ -13,7 +13,8 @@ import { useWork } from '../context/WorkContext';
 import axios from 'axios';
 import { useLocation } from 'react-router-dom';
 
-const API_BASE_URL = 'http://localhost:5000';
+import { API_BASE_URL } from '../api/config';
+
 
 const statsData = [
     { name: 'Seg', views: 4000 },

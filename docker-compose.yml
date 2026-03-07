@@ -1,0 +1,59 @@
+# ── MangaBug — Docker Compose (Desenvolvimento Local) ──
+version: '3.8'
+
+services:
+  # ── PostgreSQL ──
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mangabug
+      POSTGRES_USER: mangabug_user
+      POSTGRES_PASSWORD: mangabug_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mangabug_user -d mangabug"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend API ──
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: 5000
+      DATABASE_URL: postgresql://mangabug_user:mangabug_pass@db:5432/mangabug
+      JWT_SECRET_USER: user_secret_docker_dev
+      JWT_SECRET_ADMIN: admin_secret_docker_dev
+      CORS_ORIGINS: http://localhost:5173,http://localhost:3000
+      NODE_ENV: development
+    volumes:
+      - ./server/uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ── Frontend ──
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:5000
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - server
+
+volumes:
+  pgdata:

@@ -9,8 +9,9 @@ export const SocketProvider = ({ children }) => {
     const [isConnected, setIsConnected] = useState(false);
 
     useEffect(() => {
-        const newSocket = io(API_BASE_URL, {
-            transports: ['websocket'],
+        const socketUrl = API_BASE_URL || undefined;
+        const newSocket = io(socketUrl, {
+            transports: ['websocket', 'polling'],
             reconnectionAttempts: 5
         });
 

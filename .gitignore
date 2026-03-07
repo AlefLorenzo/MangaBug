@@ -28,6 +28,7 @@ npm-debug.log*
 
 # Uploads (user-generated content - don't track in git)
 uploads/
+server/uploads/
 
 # Debug/test scripts
 server/test_*.js
@@ -41,3 +42,4 @@ server/server_log.txt
 
 # Sensitive credentials
 admin_credentials.txt
+

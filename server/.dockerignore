@@ -1,0 +1,16 @@
+node_modules
+npm-debug.log*
+.env
+.env.local
+uploads/
+db.sqlite
+*.sqlite
+server_log.txt
+test_*.js
+debug_*.js
+verify_*.js
+audit_db.js
+check_*.js
+fix_*.js
+list_*.js
+*.sql

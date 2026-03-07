@@ -1,46 +1,112 @@
-# MangaPremium - Site de Leitura de Mangá
+# 🐛 MangaBug — Plataforma de Leitura de Mangá
 
-Um site completo, moderno e responsivo para leitura de mangás, construído com **React.js** e **Node.js**.
+## 📌 Stack
 
-## 🚀 Como Iniciar
+- **Frontend**: React + Vite
+- **Backend**: Node.js + Express
+- **Banco**: PostgreSQL (Supabase)
+- **Deploy**: Railway (Docker)
 
-### 1. Banco de Dados (MySQL via XAMPP)
+---
 
-- Abra o Painel de Controle do XAMPP e inicie o **Apache** e **MySQL**.
-- Vá para `http://localhost/phpmyadmin`.
-- Crie um banco de dados chamado `manga_db`.
-- Importe o arquivo localizado em `sql/database.sql`.
+## 🚀 Desenvolvimento Local
 
-### 2. Backend (Node.js)
+### Pré-requisitos
+
+- Node.js 20+
+- Docker & Docker Compose (opcional)
+
+### Sem Docker
 
 ```bash
+# Backend
 cd server
 npm install
-npm run dev (ou: nodemon src/index.js)
-```
+npm run dev
 
-*O servidor rodará em `http://localhost:5000`.*
-
-### 3. Frontend (React)
-
-```bash
+# Frontend (em outro terminal)
 cd client
 npm install
 npm run dev
 ```
 
-*O site estará disponível em `http://localhost:5173`.*
+### Com Docker
 
-## 🎨 Cores Utilizadas
+```bash
+docker-compose up --build
+```
 
-- **Fundo:** `#0F172A` (Azul Escuro Profundo)
-- **Destaque Azul:** `#3B82F6`
-- **Destaque Roxo:** `#8B5CF6`
-- **Destaque Laranja:** `#F59E0B`
+Acesse:
 
-## ✨ Funcionalidades
+- Frontend: <http://localhost:3000>
+- Backend API: <http://localhost:5000>
+- Health check: <http://localhost:5000/api/health>
 
-- **Área do Usuário:** Home com grid de capas, Detalhes do Mangá, Leitor contínuo.
-- **Área Admin:** Dashboard com estatísticas e gestão de títulos (em `/admin`).
-- **Segurança:** Autenticação JWT e senhas criptografadas com bcrypt.
-- **Performance:** Imagens otimizadas e carregamento rápido com Vite.
+---
+
+## 🌐 Deploy na Railway
+
+### 1. Crie o projeto na Railway
+
+1. Acesse [railway.app](https://railway.app)
+2. Clique em **"New Project"** → **"Deploy from GitHub repo"**
+3. Selecione o repositório `AlefLorenzo/MangaBug`
+
+### 2. Configure as variáveis de ambiente
+
+Na aba **Variables** do serviço, adicione:
+
+| Variável | Valor |
+|---|---|
+| `DATABASE_URL` | `postgresql://...` (sua URL do Supabase) |
+| `JWT_SECRET_USER` | (gere um segredo forte) |
+| `JWT_SECRET_ADMIN` | (gere um segredo forte) |
+| `CORS_ORIGINS` | `https://seu-dominio.railway.app` |
+| `NODE_ENV` | `production` |
+
+### 3. Deploy automático
+
+O Railway vai detectar o `Dockerfile` na raiz e fazer o build automaticamente.
+
+O health check está configurado em `/api/health`.
+
+---
+
+## 📁 Estrutura
+
+```
+MangaBug/
+├── Dockerfile            # Build unificado (Railway)
+├── docker-compose.yml    # Dev local com Docker
+├── railway.toml          # Config Railway
+├── client/               # Frontend React + Vite
+│   ├── Dockerfile        # Build isolado do frontend
+│   ├── nginx.conf        # Nginx para SPA
+│   └── src/
+├── server/               # Backend Express + PostgreSQL
+│   ├── Dockerfile        # Build isolado do backend
+│   └── src/
+│       ├── config/       # DB connection
+│       ├── controllers/  # Lógica de negócio
+│       ├── middleware/   # Auth, upload
+│       ├── routes/       # Endpoints API
+│       └── utils/        # Helpers
+└── sql/                  # Schema SQL
+```
+
+---
+
+## 🔧 API Endpoints
+
+- `GET /api/health` — Health check
+- `POST /api/auth/login` — Login
+- `POST /api/auth/register` — Registro
+- `GET /api/works` — Listar mangás
+- `GET /api/chapters/:id` — Páginas do capítulo
+- `GET /api/banners` — Banners da home
+
+---
+
+## 📝 Licença
+
+ISC

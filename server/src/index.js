@@ -73,7 +73,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/api/', apiLimiter);
 
 // Uploads static directory
-const uploadDir = path.join(__dirname, '../../uploads');
+const uploadDir = path.join(process.cwd(), 'uploads');
 const subDirs = ['covers', 'chapters', 'banners', 'avatars'];
 
 if (!fs.existsSync(uploadDir)) {
@@ -117,6 +117,26 @@ io.on('connection', (socket) => {
     });
 });
 
+// ── Produção: servir o frontend buildado (SPA) ──
+if (process.env.NODE_ENV === 'production') {
+    const clientDist = path.join(__dirname, '..', '..', 'client', 'dist');
+
+    if (fs.existsSync(clientDist)) {
+        app.use(express.static(clientDist));
+
+        // Fallback: qualquer rota que não seja /api/* vai para o index.html
+        app.get('*', (req, res) => {
+            if (!req.path.startsWith('/api') && !req.path.startsWith('/uploads')) {
+                res.sendFile(path.join(clientDist, 'index.html'));
+            }
+        });
+
+        console.log('📦 Servindo frontend estático de:', clientDist);
+    } else {
+        console.warn('⚠️ Frontend build não encontrado em:', clientDist);
+    }
+}
+
 // Global error handler — prevents server crashes from unhandled errors
 app.use((err, req, res, next) => {
     console.error('🔥 Unhandled Error:', err.message);
@@ -125,6 +145,11 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
+// Trust proxy (Railway / Render / Heroku)
+app.set('trust proxy', 1);
+
 httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server Premium running on port ${PORT}`);
+    console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+

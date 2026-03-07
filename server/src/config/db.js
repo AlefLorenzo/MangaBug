@@ -10,16 +10,20 @@ if (!process.env.DATABASE_URL) {
     process.exit(1);
 }
 
+// Detecta se precisa de SSL (produção / Supabase / Railway)
+const isProduction = process.env.NODE_ENV === 'production';
+const needsSSL = isProduction ||
+    (process.env.DATABASE_URL && (
+        process.env.DATABASE_URL.includes('supabase') ||
+        process.env.DATABASE_URL.includes('railway') ||
+        process.env.DATABASE_URL.includes('render')
+    ));
+
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
 
-    // 🔐 Obrigatório para Supabase / Render
-    ssl: {
-        rejectUnauthorized: false
-    },
-
-    // 🔥 FORÇA IPv4 (resolve ENETUNREACH no Render)
-    family: 4,
+    // 🔐 SSL condicional (produção / hosts remotos)
+    ...(needsSSL && { ssl: { rejectUnauthorized: false } }),
 
     // ⚙️ Pool tuning (estável em produção)
     max: 10,
