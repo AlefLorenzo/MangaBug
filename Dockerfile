@@ -61,5 +61,5 @@ EXPOSE ${PORT:-5000}
 
 ENV NODE_ENV=production
 
-# PID 1 transparente com dumb-init para lidar com sinais e processos órfãos
-CMD ["dumb-init", "node", "src/index.js"]
+# Executa migração e então o servidor (dumb-init lida com sinais de kill)
+CMD ["sh", "-c", "node src/db_migrate.js && dumb-init node src/index.js"]

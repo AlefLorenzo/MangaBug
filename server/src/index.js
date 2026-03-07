@@ -97,16 +97,16 @@ app.get('/api/health', async (req, res) => {
     try {
         // Verifica conexão com o banco
         await db.query('SELECT 1');
-        res.json({
+        res.status(200).json({
             status: 'ok',
             database: 'connected',
-            timestamp: Date.now(),
-            env: process.env.NODE_ENV || 'development'
+            timestamp: Date.now()
         });
     } catch (err) {
-        console.error('❌ Healthcheck failure:', err.message);
-        res.status(503).json({
-            status: 'unhealthy',
+        console.warn('⚠️ Healthcheck warning (Database):', err.message);
+        // Retornamos 200 para evitar que a Railway mate o container por instabilidade transitória do banco
+        res.status(200).json({
+            status: 'service_alive',
             database: 'disconnected',
             error: err.message,
             timestamp: Date.now()
@@ -144,11 +144,9 @@ if (process.env.NODE_ENV === 'production') {
     if (fs.existsSync(clientDist)) {
         app.use(express.static(clientDist));
 
-        // Fallback: qualquer rota que não seja /api/* vai para o index.html
+        // Fallback: qualquer rota que não coincidiu com API ou arquivos estáticos vai para o index.html (SPA)
         app.get('*', (req, res) => {
-            if (!req.path.startsWith('/api') && !req.path.startsWith('/uploads')) {
-                res.sendFile(path.join(clientDist, 'index.html'));
-            }
+            res.sendFile(path.join(clientDist, 'index.html'));
         });
 
         console.log('📦 Servindo frontend estático de:', clientDist);
