@@ -1,26 +1,24 @@
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
-import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import fs from 'fs';
-import { createServer } from 'http';
-import { Server } from 'socket.io';
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+import fs from "fs";
+import { createServer } from "http";
+import { Server } from "socket.io";
 
-// Routes
-import authRoutes from './routes/authRoutes.js';
-import workRoutes from './routes/workRoutes.js';
-import chapterRoutes from './routes/chapterRoutes.js';
-import adminRoutes from './routes/adminRoutes.js';
-import userRoutes from './routes/userRoutes.js';
-import readerRoutes from './routes/readerRoutes.js';
-import bannerRoutes from './routes/bannerRoutes.js';
-import gamificationRoutes from './routes/gamificationRoutes.js';
+import authRoutes from "./routes/authRoutes.js";
+import workRoutes from "./routes/workRoutes.js";
+import chapterRoutes from "./routes/chapterRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
+import readerRoutes from "./routes/readerRoutes.js";
+import bannerRoutes from "./routes/bannerRoutes.js";
+import gamificationRoutes from "./routes/gamificationRoutes.js";
 
-// Database
-import db from './config/db.js';
+import db from "./config/db.js";
 
 dotenv.config();
 
@@ -30,138 +28,177 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const httpServer = createServer(app);
 
-// 🩺 Health checks — BEFORE any middleware (CORS, Rate Limit, etc)
-app.get('/api/health', async (req, res) => {
-    try {
-        await db.query('SELECT 1');
-        res.status(200).json({ status: 'ok', database: 'connected' });
-    } catch (err) {
-        res.status(200).json({ status: 'service_alive', database: 'disconnected', error: err.message });
-    }
+const PORT = process.env.PORT || 3000;
+
+app.set("trust proxy", 1);
+
+
+// =======================
+// HEALTHCHECK
+// =======================
+
+app.get("/", (req, res) => {
+  res.status(200).send("API Running");
 });
 
-// Root health check for some platforms
-app.get('/', (req, res) => {
-    res.status(200).send('MangaBug API is Running');
+app.get("/api/health", async (req, res) => {
+  try {
+    await db.query("SELECT 1");
+    res.json({ status: "ok", database: "connected" });
+  } catch (err) {
+    res.json({ status: "ok", database: "disconnected" });
+  }
 });
 
-// --- Allowed Origins ---
-const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || 'http://localhost:5173').split(',');
 
-const io = new Server(httpServer, {
-    cors: {
-        origin: ALLOWED_ORIGINS,
-        methods: ["GET", "POST"]
-    }
-});
+// =======================
+// SECURITY
+// =======================
 
-// --- Security Middleware ---
 app.use(helmet({
-    crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow images to load cross-origin
-    contentSecurityPolicy: false // Disable CSP for now (React SPA handles its own)
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: false
 }));
+
+const ALLOWED_ORIGINS =
+  (process.env.CORS_ORIGINS || "http://localhost:5173").split(",");
 
 app.use(cors({
-    origin: ALLOWED_ORIGINS,
-    credentials: true
+  origin: ALLOWED_ORIGINS,
+  credentials: true
 }));
 
-// --- Rate Limiting ---
-const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 20, // 20 attempts per window
-    message: { success: false, message: 'Muitas tentativas. Tente novamente em 15 minutos.' },
-    standardHeaders: true,
-    legacyHeaders: false
-});
+
+// =======================
+// RATE LIMIT
+// =======================
 
 const apiLimiter = rateLimit({
-    windowMs: 1 * 60 * 1000, // 1 minute
-    max: 100, // 100 requests per minute
-    message: { success: false, message: 'Limite de requisições atingido. Aguarde.' },
-    standardHeaders: true,
-    legacyHeaders: false
+  windowMs: 60 * 1000,
+  max: 100
 });
 
-// --- Body Parsers ---
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20
+});
 
-// --- Apply general rate limit ---
-app.use('/api/', apiLimiter);
+app.use("/api/", apiLimiter);
 
-// Uploads static directory
-const uploadDir = path.join(process.cwd(), 'uploads');
-const subDirs = ['covers', 'chapters', 'banners', 'avatars'];
+
+// =======================
+// BODY PARSER
+// =======================
+
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true }));
+
+
+// =======================
+// UPLOADS
+// =======================
+
+const uploadDir = path.join("/tmp", "uploads");
+const subDirs = ["covers", "chapters", "banners", "avatars"];
 
 if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
+  fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-subDirs.forEach(sub => {
-    const subPath = path.join(uploadDir, sub);
-    if (!fs.existsSync(subPath)) {
-        fs.mkdirSync(subPath, { recursive: true });
-    }
+subDirs.forEach(dir => {
+  const p = path.join(uploadDir, dir);
+  if (!fs.existsSync(p)) {
+    fs.mkdirSync(p, { recursive: true });
+  }
 });
 
-app.use('/uploads', express.static(uploadDir));
+app.use("/uploads", express.static(uploadDir));
 
 
-// Route Middleware — Auth FIRST (most critical, must never be blocked)
-app.set('io', io);
-global.io = io;
+// =======================
+// SOCKET.IO
+// =======================
 
-// Apply stricter rate limit on auth routes
-app.use('/api/auth', authLimiter, authRoutes);
-app.use('/api/works', workRoutes);
-app.use('/api/chapters', chapterRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/reader', readerRoutes);
-app.use('/api/banners', bannerRoutes);
-app.use('/api/gamification', gamificationRoutes);
+const io = new Server(httpServer, {
+  cors: {
+    origin: ALLOWED_ORIGINS,
+    methods: ["GET", "POST"]
+  }
+});
 
-// Socket.io integration
-io.on('connection', (socket) => {
-    console.log('User connected signal:', socket.id);
+app.set("io", io);
 
-    socket.on('disconnect', () => {
-        console.log('User disconnected signal:', socket.id);
+io.on("connection", socket => {
+  console.log("User connected:", socket.id);
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+  });
+});
+
+
+// =======================
+// ROUTES
+// =======================
+
+app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/works", workRoutes);
+app.use("/api/chapters", chapterRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/reader", readerRoutes);
+app.use("/api/banners", bannerRoutes);
+app.use("/api/gamification", gamificationRoutes);
+
+
+// =======================
+// SERVE FRONTEND (PROD)
+// =======================
+
+if (process.env.NODE_ENV === "production") {
+
+  const clientDist = path.join(__dirname, "..", "..", "client", "dist");
+
+  if (fs.existsSync(clientDist)) {
+
+    app.use(express.static(clientDist));
+
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(clientDist, "index.html"));
     });
-});
 
-// ── Produção: servir o frontend buildado (SPA) ──
-if (process.env.NODE_ENV === 'production') {
-    const clientDist = path.join(__dirname, '..', '..', 'client', 'dist');
-
-    if (fs.existsSync(clientDist)) {
-        app.use(express.static(clientDist));
-
-        // Fallback: qualquer rota que não coincidiu com API ou arquivos estáticos vai para o index.html (SPA)
-        app.get('*', (req, res) => {
-            res.sendFile(path.join(clientDist, 'index.html'));
-        });
-
-        console.log('📦 Servindo frontend estático de:', clientDist);
-    } else {
-        console.warn('⚠️ Frontend build não encontrado em:', clientDist);
-    }
+    console.log("📦 Serving frontend from:", clientDist);
+  }
 }
 
-// Global error handler — prevents server crashes from unhandled errors
+
+// =======================
+// ERROR HANDLER
+// =======================
+
 app.use((err, req, res, next) => {
-    console.error('🔥 Unhandled Error:', err.message);
-    res.status(500).json({ error: 'Internal server error' });
+  console.error("🔥 Unhandled Error:", err);
+  res.status(500).json({ error: "Internal server error" });
 });
 
-const PORT = process.env.PORT || 5000;
 
-// Trust proxy (Railway / Render / Heroku)
-app.set('trust proxy', 1);
+// =======================
+// START SERVER
+// =======================
 
-httpServer.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Server Premium running on port ${PORT}`);
-    console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+httpServer.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Server running on port ${PORT}`);
 });
 
+
+// =======================
+// FAILSAFE (ANTI-CRASH)
+// =======================
+
+process.on("unhandledRejection", err => {
+  console.error("Unhandled Rejection:", err);
+});
+
+process.on("uncaughtException", err => {
+  console.error("Uncaught Exception:", err);
+});
