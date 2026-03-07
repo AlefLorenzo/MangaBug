@@ -1,5 +1,5 @@
 # ── MangaBug — Dockerfile Unificado para Railway ──
-# Faz build do frontend + roda o backend servindo tudo
+# Build frontend + backend Express unificado
 
 # ============================================
 # Stage 1: Build do frontend (React + Vite)
@@ -8,12 +8,13 @@ FROM node:20-slim AS client-builder
 
 WORKDIR /app/client
 
+# Melhor cache de layers
 COPY client/package.json client/package-lock.json* ./
 RUN npm ci
 
 COPY client/ ./
 
-# Em produção, API fica na mesma origem (sem CORS cross-domain)
+# Build time: VITE_API_URL vazio (mesma origem em produção)
 ENV VITE_API_URL=""
 RUN npm run build
 
@@ -22,8 +23,7 @@ RUN npm run build
 # ============================================
 FROM node:20-slim
 
-# Instala ferramentas de build necessárias para compilar módulos nativos (como sharp)
-# do zero, se os binários pré-compilados falharem por qualquer motivo.
+# Instala pacotes básicos de sistema para compilação nativa (BCRYPT, SHARP, etc)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     make \
@@ -33,33 +33,33 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     dumb-init \
     && rm -rf /var/lib/apt/lists/*
 
+# Configura o ambiente para compilação robusta
+RUN npm install -g node-gyp
+
 WORKDIR /app
 
-# Copia package files do backend
+# Copia pacotes do backend
 COPY server/package.json server/package-lock.json* ./server/
 
-# Configura o ambiente para compilação nativa se necessário
-ENV NPM_CONFIG_BUILD_FROM_SOURCE=false
-
-# Instala dependências (production only)
-# --include=optional garante que o sharp baixe os binários certos para Linux
+# Instala dependências de produção
+# sharp@0.34+ requer node-gyp disponível para instalações que fogem do binário prebuilt
 RUN cd server && npm install --omit=dev --include=optional
 
-# Copia código do backend
+# Copia o código fonte do backend
 COPY server/src/ ./server/src/
 
-# Copia o build do frontend
+# Copia o build final do frontend
 COPY --from=client-builder /app/client/dist ./client/dist
 
-# Cria diretórios de uploads
+# Estrutura de diretórios para uploads (persistência não existe no Railway sem volumes)
 RUN mkdir -p server/uploads/covers server/uploads/chapters server/uploads/banners server/uploads/avatars
 
 WORKDIR /app/server
 
-# Porta (Railway define $PORT automaticamente)
+# Porta automática da Railway
 EXPOSE ${PORT:-5000}
 
 ENV NODE_ENV=production
 
-# dumb-init como PID 1 — gerencia processos corretamente
+# PID 1 transparente com dumb-init para lidar com sinais e processos órfãos
 CMD ["dumb-init", "node", "src/index.js"]

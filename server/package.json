@@ -22,12 +22,13 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.0.2",
+    "node-addon-api": "^8.3.1",
+    "node-gyp": "^10.2.1",
     "pg": "^8.19.0",
     "sharp": "^0.34.5",
     "socket.io": "^4.8.3"
   },
   "devDependencies": {
-    "node-gyp": "^10.2.0",
     "nodemon": "^3.1.14"
   }
 }

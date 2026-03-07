@@ -1,8 +1,7 @@
 # ── MangaBug API — Dockerfile ──
 FROM node:20-slim
 
-# Instala ferramentas de build necessárias para compilar módulos nativos (como sharp)
-# do zero, se os binários pré-compilados falharem por qualquer motivo.
+# Pacotes essenciais de compilação nativa (SHARP, BCRYPT, etc)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     make \
@@ -12,25 +11,28 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     dumb-init \
     && rm -rf /var/lib/apt/lists/*
 
+# Instalação global do node-gyp para garantir disponibilidade
+RUN npm install -g node-gyp
+
 WORKDIR /app
 
-# Copia apenas package files primeiro (melhor cache de layers)
+# Copia package e lockfile para cache
 COPY package.json package-lock.json* ./
 
-# Instala dependências (production only)
-# --include=optional garante que o sharp baixe os binários certos para Linux
+# Instala dependências de produção. No Debian o sharp baixa binários prebuilt
+# automaticamente, mas precisa das ferramentas acima instaladas se falhar.
 RUN npm install --omit=dev --include=optional
 
-# Copia o restante do código
+# Copia o código backend
 COPY . .
 
-# Cria diretórios de uploads
+# Diretórios de uploads obrigatórios
 RUN mkdir -p uploads/covers uploads/chapters uploads/banners uploads/avatars
 
-# Expõe a porta (Railway define $PORT automaticamente)
+# Railway porta automática $PORT
 EXPOSE ${PORT:-5000}
 
 ENV NODE_ENV=production
 
-# Comando para iniciar usando dumb-init como PID 1
+# PID 1 transparente com dumb-init
 CMD ["dumb-init", "node", "src/index.js"]
