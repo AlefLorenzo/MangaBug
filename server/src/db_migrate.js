@@ -7,11 +7,28 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function runMigration() {
-    console.log('🚀 Iniciando migração do Banco de Dados PostgreSQL...');
+    console.log('🚀 Iniciando script de migração do Banco de Dados PostgreSQL...');
+
+    // --- ⏳ Esperar o Banco de Dados (Retry loop) ---
+    let retries = 10;
+    while (retries > 0) {
+        try {
+            await db.query('SELECT 1');
+            console.log('✅ Banco de Dados está pronto.');
+            break;
+        } catch (err) {
+            retries--;
+            console.warn(`⏳ Aguardando banco de dados... (${retries} tentativas restantes)`);
+            if (retries === 0) {
+                console.error('❌ Falha ao conectar ao banco após 10 tentativas. Abortando migração.');
+                process.exit(1);
+            }
+            await new Promise(res => setTimeout(res, 5000)); // Espera 5s
+        }
+    }
 
     // Caminho para o schema.sql
     const schemaPath = path.join(__dirname, '..', '..', 'sql', 'supabase_schema.sql');
-
     if (!fs.existsSync(schemaPath)) {
         console.error('❌ Arquivo schema.sql não encontrado em:', schemaPath);
         process.exit(1);
@@ -19,39 +36,29 @@ async function runMigration() {
 
     try {
         const schemaSql = fs.readFileSync(schemaPath, 'utf8');
-
-        // Divide o SQL por ';' mas cuida para não quebrar dentro de funções ou strings complexas
-        // Para o schema fornecido, dividir por ';' resolve a maioria dos casos simples de DDL
-        const commands = schemaSql
-            .split(';')
-            .map(cmd => cmd.trim())
-            .filter(cmd => cmd.length > 0);
+        const commands = schemaSql.split(';').map(cmd => cmd.trim()).filter(cmd => cmd.length > 0);
 
         console.log(`📑 Encontrados ${commands.length} comandos SQL. Executando...`);
 
         for (let i = 0; i < commands.length; i++) {
             const command = commands[i];
             try {
-                // Remove comentários de linha únicas no início para o log ficar limpo
                 const cleanCommand = command.replace(/^\s*--.*$/gm, '').trim();
                 if (!cleanCommand) continue;
 
                 await db.query(command);
-                process.stdout.write(`\r✅ Progress: [${i + 1}/${commands.length}]`);
+                if ((i + 1) % 10 === 0) console.log(`⏩ Rodados ${i + 1}/${commands.length} comandos...`);
             } catch (err) {
-                // Alguns erros como "already exists" são ignorados se usarmos CREATE IF NOT EXISTS,
-                // mas logamos erros reais.
-                if (!err.message.includes('already exists')) {
+                if (!err.message.includes('already exists') && !err.message.includes('duplicate')) {
                     console.error(`\n❌ Erro no comando ${i + 1}:`, err.message);
-                    console.error('SQL:', command.substring(0, 100) + '...');
                 }
             }
         }
 
-        console.log('\n\n🎉 Migração finalizada com sucesso!');
+        console.log('\n🎉 Migração finalizada com sucesso!');
         process.exit(0);
     } catch (err) {
-        console.error('\n❌ Erro fatal durante a migração:', err);
+        console.error('\n❌ Erro fatal:', err);
         process.exit(1);
     }
 }

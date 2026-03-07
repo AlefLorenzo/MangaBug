@@ -30,6 +30,21 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const httpServer = createServer(app);
 
+// 🩺 Health checks — BEFORE any middleware (CORS, Rate Limit, etc)
+app.get('/api/health', async (req, res) => {
+    try {
+        await db.query('SELECT 1');
+        res.status(200).json({ status: 'ok', database: 'connected' });
+    } catch (err) {
+        res.status(200).json({ status: 'service_alive', database: 'disconnected', error: err.message });
+    }
+});
+
+// Root health check for some platforms
+app.get('/', (req, res) => {
+    res.status(200).send('MangaBug API is Running');
+});
+
 // --- Allowed Origins ---
 const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || 'http://localhost:5173').split(',');
 
@@ -92,27 +107,6 @@ subDirs.forEach(sub => {
 
 app.use('/uploads', express.static(uploadDir));
 
-// Health check — Railway/Frontend connectivity probe
-app.get('/api/health', async (req, res) => {
-    try {
-        // Verifica conexão com o banco
-        await db.query('SELECT 1');
-        res.status(200).json({
-            status: 'ok',
-            database: 'connected',
-            timestamp: Date.now()
-        });
-    } catch (err) {
-        console.warn('⚠️ Healthcheck warning (Database):', err.message);
-        // Retornamos 200 para evitar que a Railway mate o container por instabilidade transitória do banco
-        res.status(200).json({
-            status: 'service_alive',
-            database: 'disconnected',
-            error: err.message,
-            timestamp: Date.now()
-        });
-    }
-});
 
 // Route Middleware — Auth FIRST (most critical, must never be blocked)
 app.set('io', io);
