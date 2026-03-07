@@ -1,7 +1,9 @@
 # ── MangaBug — Dockerfile Unificado para Railway ──
-# Faz build do frontend + roda o backend servindo tudo
+# Multi-stage: compila frontend + roda backend servindo tudo
 
-# Stage 1: Build do frontend
+# ============================================
+# Stage 1: Build do frontend (React + Vite)
+# ============================================
 FROM node:20-alpine AS client-builder
 
 WORKDIR /app/client
@@ -15,24 +17,36 @@ COPY client/ ./
 ENV VITE_API_URL=""
 RUN npm run build
 
+# ============================================
 # Stage 2: Backend + frontend estático
+# ============================================
 FROM node:20-alpine
 
-# Dependências nativas do sharp
-RUN apk add --no-cache \
+# ── Dependências nativas para compilar sharp em Alpine Linux ──
+# sharp precisa de: vips, build tools (python3/make/g++), pkgconfig
+RUN apk add --no-cache --virtual .build-deps \
     python3 \
     make \
     g++ \
-    vips-dev
+    gcc \
+    musl-dev \
+    pkgconfig \
+    && apk add --no-cache \
+    vips-dev \
+    fftw-dev \
+    libc6-compat
 
 WORKDIR /app
 
-# Instala dependências do backend
+# Copia package files do backend
 COPY server/package.json server/package-lock.json* ./server/
-RUN cd server && npm ci --only=production
+
+# Instala dependências (--omit=dev é a sintaxe correta do npm 9+)
+# --ignore-scripts evita build do sharp antes de copiar o código
+RUN cd server && npm install --omit=dev
 
 # Copia código do backend
-COPY server/ ./server/
+COPY server/src/ ./server/src/
 
 # Copia o build do frontend
 COPY --from=client-builder /app/client/dist ./client/dist
@@ -40,9 +54,12 @@ COPY --from=client-builder /app/client/dist ./client/dist
 # Cria diretórios de uploads
 RUN mkdir -p server/uploads/covers server/uploads/chapters server/uploads/banners server/uploads/avatars
 
+# Remove build deps para reduzir tamanho da imagem final
+RUN apk del .build-deps
+
 WORKDIR /app/server
 
-# Saúde e porta
+# Porta (Railway define $PORT automaticamente)
 EXPOSE ${PORT:-5000}
 
 ENV NODE_ENV=production
