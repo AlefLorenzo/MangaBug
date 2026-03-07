@@ -44,9 +44,16 @@ app.get("/", (req, res) => {
 app.get("/api/health", async (req, res) => {
   try {
     await db.query("SELECT 1");
-    res.json({ status: "ok", database: "connected" });
+    res.status(200).json({
+      status: "ok",
+      database: "connected"
+    });
   } catch (err) {
-    res.json({ status: "ok", database: "disconnected" });
+    console.error("Healthcheck DB error:", err.message);
+    res.status(200).json({
+      status: "ok",
+      database: "disconnected"
+    });
   }
 });
 
@@ -55,18 +62,23 @@ app.get("/api/health", async (req, res) => {
 // SECURITY
 // =======================
 
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" },
-  contentSecurityPolicy: false
-}));
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    contentSecurityPolicy: false
+  })
+);
 
-const ALLOWED_ORIGINS =
-  (process.env.CORS_ORIGINS || "http://localhost:5173").split(",");
+const ALLOWED_ORIGINS = (
+  process.env.CORS_ORIGINS || "http://localhost:5173"
+).split(",");
 
-app.use(cors({
-  origin: ALLOWED_ORIGINS,
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: ALLOWED_ORIGINS,
+    credentials: true
+  })
+);
 
 
 // =======================
@@ -99,16 +111,23 @@ app.use(express.urlencoded({ extended: true }));
 // =======================
 
 const uploadDir = path.join("/tmp", "uploads");
-const subDirs = ["covers", "chapters", "banners", "avatars"];
+
+const subDirs = [
+  "covers",
+  "chapters",
+  "banners",
+  "avatars"
+];
 
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
 subDirs.forEach(dir => {
-  const p = path.join(uploadDir, dir);
-  if (!fs.existsSync(p)) {
-    fs.mkdirSync(p, { recursive: true });
+  const dirPath = path.join(uploadDir, dir);
+
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
   }
 });
 
@@ -157,19 +176,40 @@ app.use("/api/gamification", gamificationRoutes);
 
 if (process.env.NODE_ENV === "production") {
 
-  const clientDist = path.join(__dirname, "..", "..", "client", "dist");
+  const clientDist = path.join(
+    __dirname,
+    "..",
+    "..",
+    "client",
+    "dist"
+  );
 
   if (fs.existsSync(clientDist)) {
 
+    console.log("📦 Serving frontend from:", clientDist);
+
     app.use(express.static(clientDist));
 
-    app.get("*", (req, res) => {
+    app.get("/*", (req, res) => {
       res.sendFile(path.join(clientDist, "index.html"));
     });
 
-    console.log("📦 Serving frontend from:", clientDist);
+  } else {
+    console.log("⚠️ Frontend dist not found");
   }
+
 }
+
+
+// =======================
+// 404 HANDLER
+// =======================
+
+app.use((req, res) => {
+  res.status(404).json({
+    error: "Route not found"
+  });
+});
 
 
 // =======================
@@ -178,7 +218,10 @@ if (process.env.NODE_ENV === "production") {
 
 app.use((err, req, res, next) => {
   console.error("🔥 Unhandled Error:", err);
-  res.status(500).json({ error: "Internal server error" });
+
+  res.status(500).json({
+    error: "Internal server error"
+  });
 });
 
 
