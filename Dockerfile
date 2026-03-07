@@ -48,6 +48,9 @@ RUN cd server && npm install --omit=dev --include=optional
 # Copia o código fonte do backend
 COPY server/src/ ./server/src/
 
+# Copia o schema SQL para migrações
+COPY sql/ ./sql/
+
 # Copia o build final do frontend
 COPY --from=client-builder /app/client/dist ./client/dist
 
