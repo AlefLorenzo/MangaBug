@@ -19,6 +19,9 @@ import readerRoutes from './routes/readerRoutes.js';
 import bannerRoutes from './routes/bannerRoutes.js';
 import gamificationRoutes from './routes/gamificationRoutes.js';
 
+// Database
+import db from './config/db.js';
+
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -89,9 +92,26 @@ subDirs.forEach(sub => {
 
 app.use('/uploads', express.static(uploadDir));
 
-// Health check — frontend connectivity probe
-app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: Date.now() });
+// Health check — Railway/Frontend connectivity probe
+app.get('/api/health', async (req, res) => {
+    try {
+        // Verifica conexão com o banco
+        await db.query('SELECT 1');
+        res.json({
+            status: 'ok',
+            database: 'connected',
+            timestamp: Date.now(),
+            env: process.env.NODE_ENV || 'development'
+        });
+    } catch (err) {
+        console.error('❌ Healthcheck failure:', err.message);
+        res.status(503).json({
+            status: 'unhealthy',
+            database: 'disconnected',
+            error: err.message,
+            timestamp: Date.now()
+        });
+    }
 });
 
 // Route Middleware — Auth FIRST (most critical, must never be blocked)
