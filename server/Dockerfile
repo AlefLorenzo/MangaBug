@@ -1,25 +1,18 @@
 # ── MangaBug API — Dockerfile ──
-FROM node:20-alpine
+FROM node:20-slim
 
-# Dependências nativas para compilar sharp em Alpine Linux
-RUN apk add --no-cache --virtual .build-deps \
-    python3 \
-    make \
-    g++ \
-    gcc \
-    musl-dev \
-    pkgconfig \
-    && apk add --no-cache \
-    vips-dev \
-    fftw-dev \
-    libc6-compat
+# Instala o dumb-init para gerenciar melhor os processos no container
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    dumb-init \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 # Copia apenas package files primeiro (melhor cache de layers)
 COPY package.json package-lock.json* ./
 
-# Instala dependências (--omit=dev: sintaxe npm 9+)
+# Instala dependências (production only)
+# No Debian, o sharp baixa os binários pré-compilados automaticamente
 RUN npm install --omit=dev
 
 # Copia o restante do código
@@ -28,13 +21,10 @@ COPY . .
 # Cria diretórios de uploads
 RUN mkdir -p uploads/covers uploads/chapters uploads/banners uploads/avatars
 
-# Remove build deps para reduzir tamanho
-RUN apk del .build-deps
-
 # Expõe a porta (Railway define $PORT automaticamente)
 EXPOSE ${PORT:-5000}
 
 ENV NODE_ENV=production
 
-# Comando para iniciar
-CMD ["node", "src/index.js"]
+# Comando para iniciar usando dumb-init como PID 1
+CMD ["dumb-init", "node", "src/index.js"]
